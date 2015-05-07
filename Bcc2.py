@@ -30,12 +30,12 @@ class Song( object ):
         #{TODO}FIXME
         self.RandomFilename = "/tmp/" + self.RandomFilename + ".wav"
         
-        self.Album = " "
-        self.Title = " "
-        self.Artist = " "
-        self.Comment = " "
-        self.DiscNumber = " "
-        self.TrackTitle = " "
+        self.Album = ""
+        self.Title = ""
+        self.Artist = ""
+        self.Comment = ""
+        self.DiscNumber = ""
+        self.TrackTitle = ""
 
         
     def sanitize(self, inString):
@@ -185,20 +185,19 @@ def ReadFlacTag(Song, fullpathfile):
         elif t[0] == "album":
             Song.setAlbum(t[1][0])
         elif t[0] == "date":
-            Song.setDate([1][0])
+            Song.setDate(t[1][0])
         elif t[0] == "comment":
-            Song.setComment([1][0])
+            Song.setComment(t[1][0])
         elif t[0] == "artist":
             Song.setArtist(t[1][0])        
 
 #Decoder
 def DecFlac(fullpathfile, TempFilename):
-    subprocess.call( ["flac", "-f", "-d", fullpathfile, "-o", TempFilename])#, stdout=Null, stderr=Null )
+    subprocess.call( ["flac", "-f", "-d", fullpathfile, "-o", TempFilename], stdout=Null, stderr=Null )
 
 #Encoder
 def EncMp3(Song, OutQua):
-    subprocess.call( [ "lame", "-%s" %(OutQua), Song.RandomFilename ] )
-    #subprocess.call( ["lame", "-T", OutQua, Song.RandomFilename, "--tg", Song.Genre, "--ta", Song.Artist, "--ty", "%s" %(Song.Date), "--tl", Song.Album, "--tn", "%s/%s" %( Song.TrackNumber, Song.TrackTotal ), "--tt", Song.Title, "--tc", Song.Comment, "--tv", "TPOS=%s" %(Song.DiscNumber)])#, "%s" %(Song.OutputFile)])#, stdout=Null, stderr=Null )
+    subprocess.call( ["lame", "-T", "-%s" %(OutQua), Song.RandomFilename, "--tg", Song.Genre, "--ta", Song.Artist, "--ty", "%s" %(Song.Date), "--tl", Song.Album, "--tn", "%s/%s" %( Song.TrackNumber, Song.TrackTotal ), "--tt", Song.Title, "--tc", Song.Comment, "--tv", "TPOS=%s" %(Song.DiscNumber)])#, "%s" %(Song.OutputFile)])#, stdout=Null, stderr=Null )
 
 def main():
     Initlize()
@@ -213,9 +212,9 @@ def main():
     
     for song in SongList:
         song.Decode(OptionList)
-        #song.setOutputFile(OptionList)
-        #print(song.OutputFile)
-        #song.Encode(OptionList)
+        song.setOutputFile(OptionList)
+        #print(song.Date)
+        song.Encode(OptionList)
         #print(song.TrackNumber)
     
 if __name__ == "__main__":
