@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -22,8 +22,11 @@ import random
 class Song( object ):
 
     def __init__(self):
-        self.HasArt = True
+        self.HasArt = False
         self.RandomFilename = "BA" + "".join(random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in xrange(6))
+        self.Album = ""
+        self.Title = ""
+        self.Artist = ""
         
     def sanitize(self, inString):
         unusable = ['/', '<', '>', ':', '"', '|', '?', '*']
@@ -145,7 +148,7 @@ def main():
     SongList = BuildSongList(OptionList)
     
     for i in SongList:
-        print i.RandomFilename
+        print (i.RandomFilename)
     
     
 if __name__ == "__main__":
