@@ -18,15 +18,25 @@ import os
 import subprocess
 import random
 
+Null = open(os.devnull, "w")
+
 
 class Song( object ):
 
     def __init__(self):
         self.HasArt = False
+        
         self.RandomFilename = "BA" + "".join(random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in xrange(6))
-        self.Album = ""
-        self.Title = ""
-        self.Artist = ""
+        #{TODO}FIXME
+        self.RandomFilename = "/tmp/" + self.RandomFilename + ".wav"
+        
+        self.Album = " "
+        self.Title = " "
+        self.Artist = " "
+        self.Comment = " "
+        self.DiscNumber = " "
+        self.TrackTitle = " "
+
         
     def sanitize(self, inString):
         unusable = ['/', '<', '>', ':', '"', '|', '?', '*']
@@ -34,6 +44,20 @@ class Song( object ):
             inString = inString.replace(i, '-')
         return inString
 
+    def setInputFile(self, infile):
+        self.InputFile = infile
+    def setOutputFile(self, OptionList):
+        self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + self.TrackNumber + " - " + self.Title + "." + OptionList[0]
+
+    def Decode(self, OptionList):
+        if OptionList[1] == "flac":
+            DecFlac(self.InputFile, self.RandomFilename)
+            ReadFlacTag(self, self.InputFile)
+    
+    def Encode(self, OptionList):
+        if OptionList[0] == "mp3":
+            EncMp3(self, OptionList[3])
+    
     def setAlbum(self, album):
         self.Album = album
     def setTitle(self, title):
@@ -44,10 +68,15 @@ class Song( object ):
         self.TrackNumber = tracknumber
     def setTrackTotal(self, tracktotal):
         self.TrackTotal = tracktotal
-    def setInputFile(self, infile):
-        self.InputFile = infile
-    def setOutputFilePath(self, outfile):
-        self.OutputFile = self.sanitize(outfile)
+    def setGenre(self, genre):
+        self.Genre = genre
+    def setDiscNumber(self, discnum):
+        self.DiscNumber = discnum
+    def setComment(self, comment):
+        self.Comment = comment
+    def setDate(self, date):
+        self.Date = date
+
 
 def Initlize():
     try:
@@ -135,9 +164,42 @@ def BuildSongList(OptionList):
                 song = Song()
                 song.setInputFile(os.path.join(root, file))
                 SongList.append(song)
-    
     return SongList
     
+
+#Tag Reader
+def ReadFlacTag(Song, fullpathfile):
+    import mutagen.flac
+    MetaData = mutagen.flac.Open(fullpathfile)
+    for t in MetaData.items():
+        if t[0] == "tracknumber":
+            Song.setTrackNumber(t[1][0])
+        elif t[0] == "tracktotal":
+            Song.setTrackTotal(t[1][0])
+        elif t[0] == "genre":
+            Song.setGenre(t[1][0])
+        elif t[0] == "title":
+            Song.setTitle(t[1][0])
+        elif t[0] == "discnumber":
+            Song.setDiscNumber(t[1][0])
+        elif t[0] == "album":
+            Song.setAlbum(t[1][0])
+        elif t[0] == "date":
+            Song.setDate([1][0])
+        elif t[0] == "comment":
+            Song.setComment([1][0])
+        elif t[0] == "artist":
+            Song.setArtist(t[1][0])        
+
+#Decoder
+def DecFlac(fullpathfile, TempFilename):
+    subprocess.call( ["flac", "-f", "-d", fullpathfile, "-o", TempFilename])#, stdout=Null, stderr=Null )
+
+#Encoder
+def EncMp3(Song, OutQua):
+    subprocess.call( [ "lame", "-%s" %(OutQua), Song.RandomFilename ] )
+    #subprocess.call( ["lame", "-T", OutQua, Song.RandomFilename, "--tg", Song.Genre, "--ta", Song.Artist, "--ty", "%s" %(Song.Date), "--tl", Song.Album, "--tn", "%s/%s" %( Song.TrackNumber, Song.TrackTotal ), "--tt", Song.Title, "--tc", Song.Comment, "--tv", "TPOS=%s" %(Song.DiscNumber)])#, "%s" %(Song.OutputFile)])#, stdout=Null, stderr=Null )
+
 def main():
     Initlize()
     
@@ -147,9 +209,14 @@ def main():
     InputDirectoryCheck(OptionList)
     SongList = BuildSongList(OptionList)
     
-    for i in SongList:
-        print (i.RandomFilename)
     
+    
+    for song in SongList:
+        song.Decode(OptionList)
+        #song.setOutputFile(OptionList)
+        #print(song.OutputFile)
+        #song.Encode(OptionList)
+        #print(song.TrackNumber)
     
 if __name__ == "__main__":
     main()
