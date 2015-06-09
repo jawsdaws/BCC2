@@ -13,6 +13,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from multiprocessing import Pool
+from multiprocessing import Process
+from multiprocessing import BoundedSemaphore
+from multiprocessing import cpu_count
+from multiprocessing import Queue
 import argparse
 import os
 import subprocess
@@ -47,7 +52,15 @@ class Song( object ):
     def setInputFile(self, infile):
         self.InputFile = infile
     def setOutputFile(self, OptionList):
-        self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + self.TrackNumber + " - " + self.Title + "." + OptionList[0]
+        self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
+
+    #Write the output directory to disc
+    def MkDir(self, OptionList):
+        #Use try/pass here because threads can colide and cause an exception.
+        try :
+            os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album))
+        except :
+            pass
 
     def Decode(self, OptionList):
         if OptionList[1] == "flac":
@@ -166,7 +179,6 @@ def BuildSongList(OptionList):
                 SongList.append(song)
     return SongList
     
-
 #Tag Reader
 def ReadFlacTag(Song, fullpathfile):
     import mutagen.flac
@@ -197,9 +209,22 @@ def DecFlac(fullpathfile, TempFilename):
 
 #Encoder
 def EncMp3(Song, OutQua):
-    subprocess.call( ["lame", "-T", "-%s" %(OutQua), Song.RandomFilename, "--tg", Song.Genre, "--ta", Song.Artist, "--ty", "%s" %(Song.Date), "--tl", Song.Album, "--tn", "%s/%s" %( Song.TrackNumber, Song.TrackTotal ), "--tt", Song.Title, "--tc", Song.Comment, "--tv", "TPOS=%s" %(Song.DiscNumber)])#, "%s" %(Song.OutputFile)])#, stdout=Null, stderr=Null )
+    subprocess.call( ["lame", "--id3v2-only", "-T", "-%s" %(OutQua), Song.RandomFilename, "--tg", Song.Genre, "--ta", Song.Artist, "--ty", "%s" %(Song.Date), "--tl", Song.Album, "--tn", "%s/%s" %( Song.TrackNumber, Song.TrackTotal ), "--tt", Song.Title, "--tc", Song.Comment, "--tv", "TPOS=%s" %(Song.DiscNumber), "%s" %(Song.OutputFile)], stdout=Null, stderr=Null )
+
+def Encoder (song, OptionList, sem):
+    sem.acquire()
+    song.Decode(OptionList)
+    song.setOutputFile(OptionList)
+    song.MkDir(OptionList)
+    #print(song.Date)
+    song.Encode(OptionList)
+    #print(song.TrackNumber)
+    sem.release() 
 
 def main():
+    CPU = cpu_count()
+    sem = BoundedSemaphore(CPU)
+    
     Initlize()
     
     OptionList = ParseCommandLine()
@@ -208,14 +233,11 @@ def main():
     InputDirectoryCheck(OptionList)
     SongList = BuildSongList(OptionList)
     
-    
-    
     for song in SongList:
-        song.Decode(OptionList)
-        song.setOutputFile(OptionList)
-        #print(song.Date)
-        song.Encode(OptionList)
-        #print(song.TrackNumber)
-    
+        sem.acquire()
+        p = Process(target=Encoder, args=(song, OptionList, sem))
+        p.start()
+        sem.release()
+
 if __name__ == "__main__":
     main()
