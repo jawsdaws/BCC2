@@ -38,9 +38,9 @@ class Song( object ):
         self.Album = ""
         self.Title = ""
         self.Artist = ""
-        self.Comment = ""
         self.DiscNumber = ""
         self.TrackTitle = ""
+        self.Art = ""
 
         
     def sanitize(self, inString):
@@ -70,7 +70,19 @@ class Song( object ):
     def Encode(self, OptionList):
         if OptionList[0] == "mp3":
             EncMp3(self, OptionList[3])
-    
+            if self.Art != "":
+                TagMp3(self)
+
+    def ReadArt(self):
+        for root, dirs, files in os.walk(os.path.dirname(self.InputFile)):
+            for file in files:
+                ends = os.path.splitext(file)
+                if (ends[1] == '.jpg') or (ends[1] == '.jpeg')  or (ends[1] == '.png'):
+                    #self.Art = os.path.dirname(self.InputFile) + "/" + file
+                    h = open(os.path.dirname(self.InputFile) + "/" + file, "rb")
+                    self.Art = h.read()
+
+
     def setAlbum(self, album):
         self.Album = album
     def setTitle(self, title):
@@ -85,8 +97,6 @@ class Song( object ):
         self.Genre = genre
     def setDiscNumber(self, discnum):
         self.DiscNumber = discnum
-    def setComment(self, comment):
-        self.Comment = comment
     def setDate(self, date):
         self.Date = date
 
@@ -179,10 +189,15 @@ def BuildSongList(OptionList):
                 SongList.append(song)
     return SongList
     
-#Tag Reader
+#Tag Reader************************************************************************************************
 def ReadFlacTag(Song, fullpathfile):
-    import mutagen.flac
-    MetaData = mutagen.flac.Open(fullpathfile)
+    from mutagen.flac import FLAC
+    MetaData = FLAC(fullpathfile)
+    try:
+        Song.Art = MetaData.pictures[0].data
+    except:
+        Song.ReadArt()
+           
     for t in MetaData.items():
         if t[0] == "tracknumber":
             Song.setTrackNumber(t[1][0])
@@ -198,29 +213,50 @@ def ReadFlacTag(Song, fullpathfile):
             Song.setAlbum(t[1][0])
         elif t[0] == "date":
             Song.setDate(t[1][0])
-        elif t[0] == "comment":
-            Song.setComment(t[1][0])
         elif t[0] == "artist":
             Song.setArtist(t[1][0])        
 
-#Decoder
+#Decoder******************************************************************************************************
 def DecFlac(fullpathfile, TempFilename):
     subprocess.call( ["flac", "-f", "-d", fullpathfile, "-o", TempFilename], stdout=Null, stderr=Null )
 
-#Encoder
+#Encoder******************************************************************************************************
 def EncMp3(Song, OutQua):
-    subprocess.call( ["lame", "--id3v2-only", "-T", "-%s" %(OutQua), Song.RandomFilename, "--tg", Song.Genre, "--ta", Song.Artist, "--ty", "%s" %(Song.Date), "--tl", Song.Album, "--tn", "%s/%s" %( Song.TrackNumber, Song.TrackTotal ), "--tt", Song.Title, "--tc", Song.Comment, "--tv", "TPOS=%s" %(Song.DiscNumber), "%s" %(Song.OutputFile)], stdout=Null, stderr=Null )
+    subprocess.call( ["lame", "-t", "-%s" %(OutQua), Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null )
+
+#Tagger******************************************************************************************************
+def TagMp3(Song):
+    import mutagen
+    from mutagen.easyid3 import EasyID3
+    from mutagen.mp3 import MP3
+    from mutagen.id3 import ID3, APIC
+    
+    MetaData = mutagen.File(Song.OutputFile, easy=True)
+    MetaData.add_tags()
+    MetaData['title'] = Song.Title
+    MetaData['artist'] = Song.Artist
+    MetaData['album'] = Song.Album
+    MetaData['tracknumber'] = Song.TrackNumber + "/" + Song.TrackTotal
+    MetaData['genre'] = Song.Genre
+    MetaData['date'] = Song.Date
+    MetaData.save(Song.OutputFile, v1=2)    
+    
+    MetaData2 = ID3(Song.OutputFile)
+    #MetaData2.add(APIC(encoding=3, mime=Song.Art, type=3, desc=u'Cover',data=open(Song.Art).read()))
+    #MetaData2.add(APIC(encoding=3, mime=Song.Art, type=3, desc=u'Cover',data=Song.Art.data))
+    MetaData2.add(APIC(encoding=3, type=3, desc=u'Cover',data=Song.Art))
+    MetaData2.save()
 
 def Encoder (song, OptionList, sem):
     sem.acquire()
     song.Decode(OptionList)
     song.setOutputFile(OptionList)
     song.MkDir(OptionList)
-    #print(song.Date)
     song.Encode(OptionList)
-    #print(song.TrackNumber)
-    sem.release() 
-
+    sem.release()
+    
+    
+    
 def main():
     CPU = cpu_count()
     sem = BoundedSemaphore(CPU)
