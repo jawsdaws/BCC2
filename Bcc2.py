@@ -79,9 +79,12 @@ class Song( object ):
                 ends = os.path.splitext(file)
                 if (ends[1] == '.jpg') or (ends[1] == '.jpeg')  or (ends[1] == '.png'):
                     #self.Art = os.path.dirname(self.InputFile) + "/" + file
-                    h = open(os.path.dirname(self.InputFile) + "/" + file, "rb")
-                    self.Art = h.read()
+                    self.Art = open(os.path.dirname(self.InputFile) + "/" + file, "rb").read()
 
+
+    def CleanUp(self):
+        if os.path.exists(self.RandomFilename):
+            os.remove(self.RandomFilename) 
 
     def setAlbum(self, album):
         self.Album = album
@@ -253,6 +256,7 @@ def Encoder (song, OptionList, sem):
     song.setOutputFile(OptionList)
     song.MkDir(OptionList)
     song.Encode(OptionList)
+    song.CleanUp()
     sem.release()
     
     
@@ -274,6 +278,8 @@ def main():
         p = Process(target=Encoder, args=(song, OptionList, sem))
         p.start()
         sem.release()
+    
+    
 
 if __name__ == "__main__":
     main()
