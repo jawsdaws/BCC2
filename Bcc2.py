@@ -70,21 +70,26 @@ class Song( object ):
     def Encode(self, OptionList):
         if OptionList[0] == "mp3":
             EncMp3(self, OptionList[3])
-            if self.Art != "":
-                TagMp3(self)
+            TagMp3(self)
+        if OptionList[0] == "m4a":
+            EncAac(self, OptionList[3])
+            TagAac(self) 
+
 
     def ReadArt(self):
         for root, dirs, files in os.walk(os.path.dirname(self.InputFile)):
             for file in files:
                 ends = os.path.splitext(file)
                 if (ends[1] == '.jpg') or (ends[1] == '.jpeg')  or (ends[1] == '.png'):
-                    #self.Art = os.path.dirname(self.InputFile) + "/" + file
                     self.Art = open(os.path.dirname(self.InputFile) + "/" + file, "rb").read()
 
 
     def CleanUp(self):
         if os.path.exists(self.RandomFilename):
-            os.remove(self.RandomFilename) 
+            os.remove(self.RandomFilename)
+        if os.path.exists(self.RandomFilename + ".aac"):
+            os.remove(self.RandomFilename + ".aac")
+
 
     def setAlbum(self, album):
         self.Album = album
@@ -146,7 +151,7 @@ def ParseCommandLine():
 def CodecCheck(OptionList):
     
     #Lists for supported codecs
-    SupportedOut = ["mp3", "ogg", "mpc", "aac", "wv", "flac"]
+    SupportedOut = ["mp3", "ogg", "mpc", "m4a", "wv", "flac"]
     SupportedIn = ["wv", "flac", "ape"]
     
     if OptionList[0] not in SupportedOut:
@@ -161,9 +166,10 @@ def BinaryCheck(OptionList):
 
     Null = open(os.devnull, "w")
     
+    #FIXME(CHECK THAT THE KEYS ARE RIGHT NOW)
     #Binary keys
     DecodeBinaryDic = {"wv" : "wvunpack", "flac" : "flac", "ape" : "mplayer"}
-    EncodeBinaryDic = {"mp3" : "lame", "ogg" : "oggenc", "mpc" : "mpcenc", "aac" : "neroAacEnc", "wv" : "wavpack", "flac" : "flac"}
+    EncodeBinaryDic = {"mp3" : "lame", "ogg" : "oggenc", "mpc" : "mpcenc", "m4a" : "aac-enc", "wv" : "wavpack", "flac" : "flac"}
     TaggerBinaryDic = {"mp3" : "lame", "mpc" : "mpcenc", "wv" : "wavpack", "ogg" : "vorbiscomment", "aac" : "neroAacTag", "flac" : "metaflac"}
     
     for binary in (DecodeBinaryDic, EncodeBinaryDic, TaggerBinaryDic):
@@ -227,11 +233,28 @@ def DecFlac(fullpathfile, TempFilename):
 def EncMp3(Song, OutQua):
     subprocess.call( ["lame", "-t", "-%s" %(OutQua), Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null )
 
+def EncAac(Song, OutQua):
+    subprocess.call( ["aac-enc", "-v", OutQua, "-s", "0", "-a", "1", Song.RandomFilename, Song.RandomFilename + ".aac"])#, stdout=Null, stderr=Null )
+    subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", Song.OutputFile], stdout=Null, stderr=Null )
+
 #Tagger******************************************************************************************************
+def TagAac(Song):
+    from mutagen.mp4 import MP4, MP4Cover
+    print Song.OutputFile
+    MetaData = MP4(Song.OutputFile)
+    MetaData['\xa9ART'] = Song.Artist
+    MetaData['\xa9alb'] = Song.Album
+    MetaData['\xa9gen'] = Song.Genre
+    MetaData['\xa9day'] = Song.Date
+    MetaData['\xa9nam'] = Song.Title
+    MetaData['trkn'] = [ (int(Song.TrackNumber), int(Song.TrackTotal)) ]
+    MetaData['disk'] = [ (10, 10) ]
+    MetaData['covr'] = [MP4Cover(Song.Art, MP4Cover.FORMAT_JPEG)]
+    MetaData.save()
+    
 def TagMp3(Song):
     import mutagen
     from mutagen.easyid3 import EasyID3
-    from mutagen.mp3 import MP3
     from mutagen.id3 import ID3, APIC
     
     MetaData = mutagen.File(Song.OutputFile, easy=True)
@@ -242,26 +265,25 @@ def TagMp3(Song):
     MetaData['tracknumber'] = Song.TrackNumber + "/" + Song.TrackTotal
     MetaData['genre'] = Song.Genre
     MetaData['date'] = Song.Date
-    MetaData.save(Song.OutputFile, v1=2)    
+    MetaData['discnumber'] = Song.DiscNumber
+    MetaData.save(Song.OutputFile, v1=2)
     
     MetaData2 = ID3(Song.OutputFile)
     #MetaData2.add(APIC(encoding=3, mime=Song.Art, type=3, desc=u'Cover',data=open(Song.Art).read()))
-    #MetaData2.add(APIC(encoding=3, mime=Song.Art, type=3, desc=u'Cover',data=Song.Art.data))
     MetaData2.add(APIC(encoding=3, type=3, desc=u'Cover',data=Song.Art))
     MetaData2.save()
 
-def Encoder (song, OptionList, sem):
-    sem.acquire()
-    song.Decode(OptionList)
-    song.setOutputFile(OptionList)
-    song.MkDir(OptionList)
-    song.Encode(OptionList)
-    song.CleanUp()
-    sem.release()
-    
-    
-    
 def main():
+    
+    def Encoder (song, OptionList, sem):
+        sem.acquire()
+        song.Decode(OptionList)
+        song.setOutputFile(OptionList)
+        song.MkDir(OptionList)
+        song.Encode(OptionList)
+        song.CleanUp()
+        sem.release()
+    
     CPU = cpu_count()
     sem = BoundedSemaphore(CPU)
     
