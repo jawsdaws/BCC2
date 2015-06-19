@@ -13,6 +13,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#TODO Fix Acc taging of multidiscs
+
 from multiprocessing import Pool
 from multiprocessing import Process
 from multiprocessing import BoundedSemaphore
@@ -77,6 +79,9 @@ class Song( object ):
         if OptionList[0] == "wv":
             EncWv(self, OptionList[3])
             TagWv(self)
+        if OptionList[0] == "mpc":
+            EncMpc(self, OptionList[3])
+            TagMpc(self)
             
 
 
@@ -116,7 +121,6 @@ class Song( object ):
 def Initlize():
     try:
         import mutagen.flac
-        import mutagen.apev2
     except:
         print("python-mutagen could not be imported. Is it installed?")
         raise SystemExit
@@ -244,7 +248,24 @@ def EncAac(Song, OutQua):
 def EncWv(Song, OutQua):
     subprocess.call( ["wavpack", "-y", "-%s" %(OutQua), "-i", Song.RandomFilename, "-o", Song.OutputFile], stdout=Null, stderr=Null )
 
+#Encoder
+def EncMpc(Song, OutQua):
+    subprocess.call( ["mpcenc", "--overwrite", "--quality", OutQua, Song.RandomFilename, Song.OutputFile], stdout=Null, stderr=Null )
+
 #Tagger******************************************************************************************************
+def TagMpc(Song):
+    #ApeTags do not support pictures
+    from mutagen.musepack import Musepack
+    MetaData = Musepack(Song.OutputFile)
+    MetaData['Title'] = Song.Title
+    MetaData['Artist'] = Song.Artist
+    MetaData['Album'] = Song.Album
+    MetaData['Track'] = Song.TrackNumber + "/" + Song.TrackTotal
+    MetaData['Genre'] = Song.Genre
+    MetaData['Year'] = Song.Date
+    MetaData['Part'] = Song.DiscNumber
+    MetaData.save()
+    
 def TagWv(Song):
     #ApeTags do not support pictures
     from mutagen.wavpack import WavPack
