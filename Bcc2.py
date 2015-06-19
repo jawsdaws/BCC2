@@ -242,10 +242,11 @@ def EncAac(Song, OutQua):
     subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", "-new", Song.OutputFile], stdout=Null, stderr=Null )
 
 def EncWv(Song, OutQua):
-    subprocess.call( ["wavpack", "-y", "-%s" %(OutQua), "-i", Song.RandomFilename, "-o", Song.OutputFile])#, stdout=Null, stderr=Null )
+    subprocess.call( ["wavpack", "-y", "-%s" %(OutQua), "-i", Song.RandomFilename, "-o", Song.OutputFile], stdout=Null, stderr=Null )
 
 #Tagger******************************************************************************************************
 def TagWv(Song):
+    #ApeTags do not support pictures
     from mutagen.wavpack import WavPack
     MetaData = WavPack(Song.OutputFile)
     MetaData['Title'] = Song.Title
@@ -255,7 +256,6 @@ def TagWv(Song):
     MetaData['Genre'] = Song.Genre
     MetaData['Year'] = Song.Date
     MetaData['Part'] = Song.DiscNumber
-    MetaData['coverart'] = Song.Art
     MetaData.save()
     
 def TagAac(Song):
