@@ -73,7 +73,11 @@ class Song( object ):
             TagMp3(self)
         if OptionList[0] == "m4a":
             EncAac(self, OptionList[3])
-            TagAac(self) 
+            TagAac(self)
+        if OptionList[0] == "wv":
+            EncWv(self, OptionList[3])
+            TagWv(self)
+            
 
 
     def ReadArt(self):
@@ -235,12 +239,27 @@ def EncMp3(Song, OutQua):
 
 def EncAac(Song, OutQua):
     subprocess.call( ["aac-enc", "-v", OutQua, "-s", "0", "-a", "1", Song.RandomFilename, Song.RandomFilename + ".aac"])#, stdout=Null, stderr=Null )
-    subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", Song.OutputFile], stdout=Null, stderr=Null )
+    subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", "-new", Song.OutputFile], stdout=Null, stderr=Null )
+
+def EncWv(Song, OutQua):
+    subprocess.call( ["wavpack", "-y", "-%s" %(OutQua), "-i", Song.RandomFilename, "-o", Song.OutputFile])#, stdout=Null, stderr=Null )
 
 #Tagger******************************************************************************************************
+def TagWv(Song):
+    from mutagen.wavpack import WavPack
+    MetaData = WavPack(Song.OutputFile)
+    MetaData['Title'] = Song.Title
+    MetaData['Artist'] = Song.Artist
+    MetaData['Album'] = Song.Album
+    MetaData['Track'] = Song.TrackNumber + "/" + Song.TrackTotal
+    MetaData['Genre'] = Song.Genre
+    MetaData['Year'] = Song.Date
+    MetaData['Part'] = Song.DiscNumber
+    MetaData['coverart'] = Song.Art
+    MetaData.save()
+    
 def TagAac(Song):
     from mutagen.mp4 import MP4, MP4Cover
-    print Song.OutputFile
     MetaData = MP4(Song.OutputFile)
     MetaData['\xa9ART'] = Song.Artist
     MetaData['\xa9alb'] = Song.Album
@@ -248,8 +267,10 @@ def TagAac(Song):
     MetaData['\xa9day'] = Song.Date
     MetaData['\xa9nam'] = Song.Title
     MetaData['trkn'] = [ (int(Song.TrackNumber), int(Song.TrackTotal)) ]
-    MetaData['disk'] = [ (10, 10) ]
-    MetaData['covr'] = [MP4Cover(Song.Art, MP4Cover.FORMAT_JPEG)]
+    if Song.DiscNumber != '':
+        MetaData['disk'] = [ (Song.DiscNumber, 0) ]
+    if Song.Art != '':
+        MetaData['covr'] = [MP4Cover(Song.Art, MP4Cover.FORMAT_JPEG)]
     MetaData.save()
     
 def TagMp3(Song):
