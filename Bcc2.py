@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -33,10 +33,6 @@ class Song( object ):
     def __init__(self):
         self.HasArt = False
         
-        self.RandomFilename = "BA" + "".join(random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in xrange(6))
-        #{TODO}FIXME
-        self.RandomFilename = "/tmp/" + self.RandomFilename + ".wav"
-        
         self.Album = ""
         self.Title = ""
         self.Artist = ""
@@ -44,6 +40,11 @@ class Song( object ):
         self.TrackTitle = ""
         self.Art = ""
 
+        
+    def Setup(self, OptionList):
+        self.RandomFilename = "BA" + "".join(random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in xrange(6))
+        self.RandomFilename = OptionList[5] + "/" + self.RandomFilename + ".wav"
+        print(self.RandomFilename)
         
     def sanitize(self, inString):
         unusable = ['/', '<', '>', ':', '"', '|', '?', '*']
@@ -137,22 +138,21 @@ def ParseCommandLine():
 
     args = parser.parse_args()
 
-#Fix ME This will not work because the TempDir goes out of scope
-#    #Set the temp directory
-#    if args.TempDir == None:
-#3        TempDir = "/tmp"
-#\    else:
-#        TempDir = args.TempDir
-#    if not os.path.exists(TempDir):
-#3        print ("Temp directory does not exist.")
-#        raise SystemExit
-#    if os.access(TempDir, os.W_OK) == False:
-#        print ("Temp directory is not writeable.  Please check your permissons")
-#        raise SystemExit
-    
-    OptionList = [args.OutputCodec, args.InputCodec, args.OutputDir, args.OutputQuality, args.InputDir]
+    OptionList = [args.OutputCodec, args.InputCodec, args.OutputDir, args.OutputQuality, args.InputDir, args.TempDir]
     OptionList[0] = OptionList[0].lower()
     OptionList[1] = OptionList[1].lower()
+
+    if args.TempDir == None:
+        OptionList[5] = "/tmp"
+    else:
+        OptionList[5] = args.TempDir
+    if not os.path.exists(OptionList[5]):
+        print ("Temp directory does not exist.")
+        raise SystemExit
+    if os.access(OptionList[5], os.W_OK) == False:
+        print ("Temp directory is not writeable.  Please check your permissons")
+        raise SystemExit
+
     return OptionList
 
 #Check if we can contiune with the codecs selected
@@ -242,8 +242,9 @@ def EncMp3(Song, OutQua):
     subprocess.call( ["lame", "-t", "-%s" %(OutQua), Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null )
 
 def EncAac(Song, OutQua):
-    subprocess.call( ["aac-enc", "-v", OutQua, "-s", "0", "-a", "1", Song.RandomFilename, Song.RandomFilename + ".aac"])#, stdout=Null, stderr=Null )
-    subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", "-new", Song.OutputFile], stdout=Null, stderr=Null )
+    subprocess.call( ["fdkaac", "-m", OutQua, Song.RandomFilename, "%s" %(Song.OutputFile) ],  stdout=Null, stderr=Null )
+    #subprocess.call( ["aac-enc", "-v", OutQua, "-t", "2", "-s", "0", "-a", "1", Song.RandomFilename, Song.RandomFilename + ".aac"], stdout=Null, stderr=Null )
+    #subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", "-new", Song.OutputFile], stdout=Null, stderr=Null )
 
 def EncWv(Song, OutQua):
     subprocess.call( ["wavpack", "-y", "-%s" %(OutQua), "-i", Song.RandomFilename, "-o", Song.OutputFile], stdout=Null, stderr=Null )
@@ -287,9 +288,14 @@ def TagAac(Song):
     MetaData['\xa9gen'] = Song.Genre
     MetaData['\xa9day'] = Song.Date
     MetaData['\xa9nam'] = Song.Title
-    MetaData['trkn'] = [ (int(Song.TrackNumber), int(Song.TrackTotal)) ]
+    if Song.TrackNumber != '':
+        num = int(Song.TrackNumber)
+    if Song.TrackTotal != '':
+        tot = int(Song.TrackTotal)
+    MetaData['trkn'] = [ (num, tot) ]
     if Song.DiscNumber != '':
-        MetaData['disk'] = [ (Song.DiscNumber, 0) ]
+        dnum = int(Song.DiscNumber)
+        MetaData['disk'] = [ (dnum, 0) ]
     if Song.Art != '':
         MetaData['covr'] = [MP4Cover(Song.Art, MP4Cover.FORMAT_JPEG)]
     MetaData.save()
@@ -315,14 +321,18 @@ def TagMp3(Song):
     MetaData2.add(APIC(encoding=3, type=3, desc=u'Cover',data=Song.Art))
     MetaData2.save()
 
+#Main*********************************************************************************************************
 def main():
     
     def Encoder (song, OptionList, sem):
         sem.acquire()
+        song.Setup(OptionList)
         song.Decode(OptionList)
+        print("Decode " + song.InputFile)
         song.setOutputFile(OptionList)
         song.MkDir(OptionList)
         song.Encode(OptionList)
+        print("Encoding " + song.OutputFile)
         song.CleanUp()
         sem.release()
     
