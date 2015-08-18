@@ -44,7 +44,6 @@ class Song( object ):
     def Setup(self, OptionList):
         self.RandomFilename = "BA" + "".join(random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in xrange(6))
         self.RandomFilename = OptionList[5] + "/" + self.RandomFilename + ".wav"
-        print(self.RandomFilename)
         
     def sanitize(self, inString):
         unusable = ['/', '<', '>', ':', '"', '|', '?', '*']
@@ -69,6 +68,9 @@ class Song( object ):
         if OptionList[1] == "flac":
             DecFlac(self.InputFile, self.RandomFilename)
             ReadFlacTag(self, self.InputFile)
+        elif OptionList[1] == "wv":
+            DecWv(self.InputFile, self.RandomFilename)
+            ReadApeTag(self, self.InputFile)
     
     def Encode(self, OptionList):
         if OptionList[0] == "mp3":
@@ -231,11 +233,42 @@ def ReadFlacTag(Song, fullpathfile):
         elif t[0] == "date":
             Song.setDate(t[1][0])
         elif t[0] == "artist":
-            Song.setArtist(t[1][0])        
+            Song.setArtist(t[1][0])
+            
+def ReadApeTag(Song, fullpathfile):
+    import mutagen.apev2
+    MetaData = mutagen.apev2.Open(fullpathfile)
+    try:
+        Song.Art = MetaData.pictures[0].data
+    except:
+        Song.ReadArt()
+        
+    if '/' in MetaData['track'][0]:
+        TrackList = MetaData['track'][0].split('/')
+        Song.setTrackNumber(TrackList[0])
+        Song.setTrackTotal(TrackList[1])
+    else:
+        Song.setTrackNumber(MetaData['track'][0])
+    for t in MetaData.items():
+        if t[0].lower() == "genre":
+            Song.setGenre(t[1][0])
+        elif t[0].lower() == "title":
+            Song.setTitle(t[1][0])
+        elif t[0].lower() == "part":
+            Song.setDiscNumber(t[1][0])
+        elif t[0].lower() == "album":
+            Song.setAlbum(t[1][0])
+        elif t[0].lower() == "year":
+            Song.setDate(t[1][0])
+        elif t[0].lower() == "artist":
+            Song.setArtist(t[1][0])
 
 #Decoder******************************************************************************************************
 def DecFlac(fullpathfile, TempFilename):
     subprocess.call( ["flac", "-f", "-d", fullpathfile, "-o", TempFilename], stdout=Null, stderr=Null )
+
+def DecWv(fullpathfile, TempFilename):
+    subprocess.call( ["wvunpack", "-y", fullpathfile, "-o", TempFilename], stdout=Null, stderr=Null )
 
 #Encoder******************************************************************************************************
 def EncMp3(Song, OutQua):
