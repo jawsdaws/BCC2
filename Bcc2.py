@@ -76,13 +76,16 @@ class Song( object ):
         if OptionList[0] == "mp3":
             EncMp3(self, OptionList[3])
             TagMp3(self)
-        if OptionList[0] == "m4a":
+        elif OptionList[0] == "ogg":
+            EncOgg(self, OptionList[3])
+            TagOgg(self)
+        elif OptionList[0] == "m4a":
             EncAac(self, OptionList[3])
             TagAac(self)
-        if OptionList[0] == "wv":
+        elif OptionList[0] == "wv":
             EncWv(self, OptionList[3])
             TagWv(self)
-        if OptionList[0] == "mpc":
+        elif OptionList[0] == "mpc":
             EncMpc(self, OptionList[3])
             TagMpc(self)
             
@@ -280,11 +283,39 @@ def EncAac(Song, OutQua):
 def EncWv(Song, OutQua):
     subprocess.call( ["wavpack", "-y", "-%s" %(OutQua), "-i", Song.RandomFilename, "-o", Song.OutputFile], stdout=Null, stderr=Null )
 
-#Encoder
+def EncOgg(Song, OutQua):
+    subprocess.call( ["oggenc", "-q", OutQua, Song.RandomFilename, "-o", Song.OutputFile], stdout=Null, stderr=Null )
+    
 def EncMpc(Song, OutQua):
     subprocess.call( ["mpcenc", "--overwrite", "--quality", OutQua, Song.RandomFilename, Song.OutputFile], stdout=Null, stderr=Null )
 
 #Tagger******************************************************************************************************
+def TagOgg(Song):
+    from mutagen.oggvorbis import OggVorbis
+    MetaData = OggVorbis(Song.OutputFile)
+    MetaData['TITLE'] = Song.Title
+    MetaData['ARTIST'] = Song.Artist
+    MetaData['ALBUM'] = Song.Album
+    MetaData['TRACKNUMBER'] = Song.TrackNumber
+    MetaData['TRACKTOTAL'] = Song.TrackTotal
+    MetaData['GENRE'] = Song.Genre
+    MetaData['DATE'] = Song.Date
+    MetaData['DISCNUMBER'] = Song.DiscNumber
+    
+    if Song.Art != '':
+        from mutagen.flac import Picture
+        import base64
+        
+        picture = Picture()
+        picture.data = Song.Art
+        
+        picture_data = picture.write()
+        encoded_data = base64.b64encode(picture_data)
+        vcomment_value = encoded_data.decode("ascii")
+        MetaData["metadata_block_picture"] = [vcomment_value]
+    
+    MetaData.save()
+    
 def TagMpc(Song):
     #ApeTags do not support pictures
     from mutagen.musepack import Musepack
