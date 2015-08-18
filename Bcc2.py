@@ -87,14 +87,12 @@ class Song( object ):
             TagMpc(self)
             
 
-
     def ReadArt(self):
         for root, dirs, files in os.walk(os.path.dirname(self.InputFile)):
             for file in files:
                 ends = os.path.splitext(file)
                 if (ends[1] == '.jpg') or (ends[1] == '.jpeg')  or (ends[1] == '.png'):
                     self.Art = open(os.path.dirname(self.InputFile) + "/" + file, "rb").read()
-
 
     def CleanUp(self):
         if os.path.exists(self.RandomFilename):
@@ -275,7 +273,7 @@ def EncMp3(Song, OutQua):
     subprocess.call( ["lame", "-t", "-%s" %(OutQua), Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null )
 
 def EncAac(Song, OutQua):
-    subprocess.call( ["fdkaac", "-m", OutQua, Song.RandomFilename, "%s" %(Song.OutputFile) ],  stdout=Null, stderr=Null )
+    subprocess.call( ["fdkaac", "-m", OutQua, Song.RandomFilename, "-o", "%s" %(Song.OutputFile) ],  stdout=Null, stderr=Null )
     #subprocess.call( ["aac-enc", "-v", OutQua, "-t", "2", "-s", "0", "-a", "1", Song.RandomFilename, Song.RandomFilename + ".aac"], stdout=Null, stderr=Null )
     #subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", "-new", Song.OutputFile], stdout=Null, stderr=Null )
 
