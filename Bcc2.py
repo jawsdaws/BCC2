@@ -14,6 +14,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #TODO Fix Quality checking and error handling
+#TODO Binary Check is totally broken...
 
 from multiprocessing import Pool
 from multiprocessing import Process
