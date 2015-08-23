@@ -13,7 +13,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#TODO Fix Acc taging of multidiscs
+#TODO Fix Quality checking and error handling
 
 from multiprocessing import Pool
 from multiprocessing import Process
@@ -54,13 +54,19 @@ class Song( object ):
     def setInputFile(self, infile):
         self.InputFile = infile
     def setOutputFile(self, OptionList):
-        self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
+        if self.DiscNumber != "":
+            self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + "CD " + self.DiscNumber + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
+        else:
+            self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
 
     #Write the output directory to disc
     def MkDir(self, OptionList):
         #Use try/pass here because threads can colide and cause an exception.
         try :
-            os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album))
+            if self.DiscNumber != "":
+                os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + "CD " + self.DiscNumber)
+            else:
+                os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album))
         except :
             pass
 
@@ -276,7 +282,7 @@ def EncMp3(Song, OutQua):
     subprocess.call( ["lame", "-t", "-%s" %(OutQua), Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null )
 
 def EncAac(Song, OutQua):
-    subprocess.call( ["fdkaac", "-m", OutQua, Song.RandomFilename, "-o", "%s" %(Song.OutputFile) ],  stdout=Null, stderr=Null )
+    subprocess.call( ["fdkaac", "-b", OutQua, Song.RandomFilename, "-o", "%s" %(Song.OutputFile) ],  stdout=Null, stderr=Null )
     #subprocess.call( ["aac-enc", "-v", OutQua, "-t", "2", "-s", "0", "-a", "1", Song.RandomFilename, Song.RandomFilename + ".aac"], stdout=Null, stderr=Null )
     #subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", "-new", Song.OutputFile], stdout=Null, stderr=Null )
 
@@ -350,11 +356,16 @@ def TagAac(Song):
     MetaData['\xa9gen'] = Song.Genre
     MetaData['\xa9day'] = Song.Date
     MetaData['\xa9nam'] = Song.Title
-    if Song.TrackNumber != '':
+    
+    #This is to error check for files that have no Total set
+    if Song.TrackNumber != '' and Song.TrackTotal != '':
         num = int(Song.TrackNumber)
-    if Song.TrackTotal != '':
         tot = int(Song.TrackTotal)
-    MetaData['trkn'] = [ (num, tot) ]
+        MetaData['trkn'] = [ (num, tot) ]
+    elif Song.TrackNumber != '' and Song.TrackTotal == '':
+        num = int(Song.TrackNumber)
+        MetaData['trkn'] = [(num, 0)]
+    
     if Song.DiscNumber != '':
         dnum = int(Song.DiscNumber)
         MetaData['disk'] = [ (dnum, 0) ]
