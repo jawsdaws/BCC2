@@ -33,12 +33,16 @@ class Song( object ):
     def __init__(self):
         self.HasArt = False
         
-        self.Album = ""
-        self.Title = ""
-        self.Artist = ""
-        self.DiscNumber = ""
-        self.TrackTitle = ""
-        self.Art = ""
+        self.Album = " "
+        self.Title = " "
+        self.Artist = " "
+        self.DiscNumber = " "
+        self.TrackTitle = " "
+        self.Art = " "
+        self.TrackNumber = " "
+        self.TrackTotal = " "
+        self.Genre = " "
+        self.Date = " "
 
         
     def Setup(self, OptionList):
@@ -53,8 +57,11 @@ class Song( object ):
 
     def setInputFile(self, infile):
         self.InputFile = infile
+
     def setOutputFile(self, OptionList):
-        if self.DiscNumber != "":
+        if OptionList[1] == 'wav':
+            self.OutputFile = OptionList[2] + "/" + self.sanitize(self.InputFile.split("/")[-1]) + "." + OptionList[0]
+        elif self.DiscNumber != "":
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + "CD " + self.DiscNumber + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
         else:
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
@@ -63,7 +70,9 @@ class Song( object ):
     def MkDir(self, OptionList):
         #Use try/pass here because threads can colide and cause an exception.
         try :
-            if self.DiscNumber != "":
+            if OptionList[1] == 'wav':
+                os.makedirs(OptionList[2])
+            elif self.DiscNumber != "":
                 os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + "CD " + self.DiscNumber)
             else:
                 os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album))
@@ -77,6 +86,8 @@ class Song( object ):
         elif OptionList[1] == "wv":
             DecWv(self.InputFile, self.RandomFilename)
             ReadApeTag(self, self.InputFile)
+        elif OptionList[1] == "wav":
+            DecWav(self.InputFile, self.RandomFilename)
     
     def Encode(self, OptionList):
         if OptionList[0] == "mp3":
@@ -169,7 +180,7 @@ def CodecCheck(OptionList):
     
     #Lists for supported codecs
     SupportedOut = ["mp3", "ogg", "mpc", "m4a", "wv", "flac"]
-    SupportedIn = ["wv", "flac", "ape"]
+    SupportedIn = ["wv", "flac", "ape", "wav"]
     
     if OptionList[0] not in SupportedOut:
         print ("Codec not Supported as Output")
@@ -197,7 +208,9 @@ def DecoderBinaryCheck(Option):
 
     Null = open(os.devnull, "w")
     
-    DecodeBinaryDic = {"wv" : "wvunpack", "flac" : "flac2", "ape" : "mplayer"}
+    if Option == "wav":
+        return
+    DecodeBinaryDic = {"wv" : "wvunpack", "flac" : "flac", "ape" : "mplayer"}
     
     try:
         subprocess.call([DecodeBinaryDic.get(Option)], stdout=Null, stderr=Null)
@@ -285,6 +298,10 @@ def DecFlac(fullpathfile, TempFilename):
 
 def DecWv(fullpathfile, TempFilename):
     subprocess.call( ["wvunpack", "-y", fullpathfile, "-o", TempFilename], stdout=Null, stderr=Null )
+    
+def DecWav(fullpathfile, TempFilename):
+    from shutil import copy
+    copy(fullpathfile, TempFilename)
 
 #Encoder******************************************************************************************************
 def EncMp3(Song, OutQua):
