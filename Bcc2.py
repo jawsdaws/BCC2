@@ -14,7 +14,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #TODO Fix Quality checking and error handling
-#TODO Binary Check is totally broken...
 
 from multiprocessing import Pool
 from multiprocessing import Process
@@ -179,23 +178,32 @@ def CodecCheck(OptionList):
         print ("Codec not Supported as Input")
         raise SystemExit
 
-#Check if the needed binary commands are installed
-def BinaryCheck(OptionList):
+#Check if the needed encoder commands are installed
+def EncoderBinaryCheck(Option):
+    
+    Null = open(os.devnull, "w")
+    
+    EncodeBinaryDic = {"mp3" : "lame", "ogg" : "oggenc", "mpc" : "mpcenc", "m4a" : "aac-enc", "wv" : "wavpack", "flac" : "flac"}
+    
+    try:
+        subprocess.call([EncodeBinaryDic.get(Option)], stdout=Null, stderr=Null)
+    except:
+        print("%s encoder (%s) is not installed" %(Option, EncodeBinaryDic.get(Option))) 
+        raise SystemExit
+    
+    
+#Check if the needed decoder commands are installed
+def DecoderBinaryCheck(Option):
 
     Null = open(os.devnull, "w")
     
-    #FIXME(CHECK THAT THE KEYS ARE RIGHT NOW)
-    #Binary keys
-    DecodeBinaryDic = {"wv" : "wvunpack", "flac" : "flac", "ape" : "mplayer"}
-    EncodeBinaryDic = {"mp3" : "lame", "ogg" : "oggenc", "mpc" : "mpcenc", "m4a" : "aac-enc", "wv" : "wavpack", "flac" : "flac"}
-    TaggerBinaryDic = {"mp3" : "lame", "mpc" : "mpcenc", "wv" : "wavpack", "ogg" : "vorbiscomment", "aac" : "neroAacTag", "flac" : "metaflac"}
+    DecodeBinaryDic = {"wv" : "wvunpack", "flac" : "flac2", "ape" : "mplayer"}
     
-    for binary in (DecodeBinaryDic, EncodeBinaryDic, TaggerBinaryDic):
-        try:
-            subprocess.call([binary.get(OptionList[1])], stdout=Null, stderr=Null)
-        except:
-            print("%s decoder (%s) is not installed" %(OptionList[1], DecodeBinaryDic.get(OptionList[1]))) 
-            raise SystemExit
+    try:
+        subprocess.call([DecodeBinaryDic.get(Option)], stdout=Null, stderr=Null)
+    except:
+        print("%s decoder (%s) is not installed" %(Option, DecodeBinaryDic.get(Option))) 
+        raise SystemExit
 
 #Check if input directory exists
 def InputDirectoryCheck(OptionList):
@@ -417,7 +425,8 @@ def main():
     
     OptionList = ParseCommandLine()
     CodecCheck(OptionList)
-    BinaryCheck(OptionList)
+    EncoderBinaryCheck(OptionList[0])
+    DecoderBinaryCheck(OptionList[1])
     InputDirectoryCheck(OptionList)
     SongList = BuildSongList(OptionList)
     
