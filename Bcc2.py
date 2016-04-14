@@ -14,6 +14,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #TODO Fix Quality checking and error handling
+#TODO FLAC encodeing is not ready
+#TODO Write Art file to .jpg
 
 from multiprocessing import Pool
 from multiprocessing import Process
@@ -32,7 +34,6 @@ class Song( object ):
 
     def __init__(self):
         self.HasArt = False
-        
         self.Album = " "
         self.Title = " "
         self.Artist = " "
@@ -44,11 +45,11 @@ class Song( object ):
         self.Genre = " "
         self.Date = " "
 
-        
+
     def Setup(self, OptionList):
         self.RandomFilename = "BA" + "".join(random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in xrange(6))
         self.RandomFilename = OptionList[5] + "/" + self.RandomFilename + ".wav"
-        
+
     def sanitize(self, inString):
         unusable = ['/', '<', '>', ':', '"', '|', '?', '*']
         for i in unusable:
@@ -61,7 +62,7 @@ class Song( object ):
     def setOutputFile(self, OptionList):
         if OptionList[1] == 'wav':
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.InputFile.split("/")[-1]) + "." + OptionList[0]
-        elif self.DiscNumber != "":
+        elif self.DiscNumber != " ":
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + "CD " + self.DiscNumber + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
         else:
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
@@ -72,7 +73,7 @@ class Song( object ):
         try :
             if OptionList[1] == 'wav':
                 os.makedirs(OptionList[2])
-            elif self.DiscNumber != "":
+            elif self.DiscNumber != " ":
                 os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + "CD " + self.DiscNumber)
             else:
                 os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album))
@@ -88,7 +89,7 @@ class Song( object ):
             ReadApeTag(self, self.InputFile)
         elif OptionList[1] == "wav":
             DecWav(self.InputFile, self.RandomFilename)
-    
+
     def Encode(self, OptionList):
         if OptionList[0] == "mp3":
             EncMp3(self, OptionList[3])
@@ -105,7 +106,7 @@ class Song( object ):
         elif OptionList[0] == "mpc":
             EncMpc(self, OptionList[3])
             TagMpc(self)
-            
+
 
     def ReadArt(self):
         for root, dirs, files in os.walk(os.path.dirname(self.InputFile)):
@@ -113,6 +114,10 @@ class Song( object ):
                 ends = os.path.splitext(file)
                 if (ends[1] == '.jpg') or (ends[1] == '.jpeg')  or (ends[1] == '.png'):
                     self.Art = open(os.path.dirname(self.InputFile) + "/" + file, "rb").read()
+
+    def WriteArtFile(self):
+        #Stub
+        print("Just a stub")
 
     def CleanUp(self):
         if os.path.exists(self.RandomFilename):
@@ -426,12 +431,13 @@ def main():
     def Encoder (song, OptionList, sem):
         sem.acquire()
         song.Setup(OptionList)
-        song.Decode(OptionList)
         print("Decode " + song.InputFile)
+        song.Decode(OptionList)        
         song.setOutputFile(OptionList)
         song.MkDir(OptionList)
-        song.Encode(OptionList)
         print("Encoding " + song.OutputFile)
+        song.Encode(OptionList)
+        song.WriteArtFile()
         song.CleanUp()
         sem.release()
     
