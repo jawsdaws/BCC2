@@ -15,7 +15,6 @@
 
 #TODO Fix Quality checking and error handling
 #TODO FLAC encodeing is not ready
-#TODO Write Art file to .jpg
 
 from multiprocessing import Pool
 from multiprocessing import Process
@@ -108,16 +107,20 @@ class Song( object ):
             TagMpc(self)
 
 
+    #This is only called if the input file does not have an art file embed
     def ReadArt(self):
         for root, dirs, files in os.walk(os.path.dirname(self.InputFile)):
             for file in files:
                 ends = os.path.splitext(file)
                 if (ends[1] == '.jpg') or (ends[1] == '.jpeg')  or (ends[1] == '.png'):
+                    self.HasArt = True
                     self.Art = open(os.path.dirname(self.InputFile) + "/" + file, "rb").read()
 
     def WriteArtFile(self):
-        #Stub
-        print("Just a stub")
+        if(self.HasArt == True):
+            f = open(self.OutputFile.rsplit('/', 1 )[0] + "/" + "cover.jpg", "w")
+            f.write(self.Art)
+            f.close
 
     def CleanUp(self):
         if os.path.exists(self.RandomFilename):
@@ -248,6 +251,7 @@ def ReadFlacTag(Song, fullpathfile):
     MetaData = FLAC(fullpathfile)
     try:
         Song.Art = MetaData.pictures[0].data
+        Song.HasArt = True
     except:
         Song.ReadArt()
            
@@ -274,6 +278,7 @@ def ReadApeTag(Song, fullpathfile):
     MetaData = mutagen.apev2.Open(fullpathfile)
     try:
         Song.Art = MetaData.pictures[0].data
+        Song.HasArt = True
     except:
         Song.ReadArt()
         
@@ -365,7 +370,7 @@ def TagMpc(Song):
     MetaData['Year'] = Song.Date
     MetaData['Part'] = Song.DiscNumber
     MetaData.save()
-    
+
 def TagWv(Song):
     #ApeTags do not support pictures
     from mutagen.wavpack import WavPack
@@ -378,7 +383,7 @@ def TagWv(Song):
     MetaData['Year'] = Song.Date
     MetaData['Part'] = Song.DiscNumber
     MetaData.save()
-    
+
 def TagAac(Song):
     from mutagen.mp4 import MP4, MP4Cover
     MetaData = MP4(Song.OutputFile)
@@ -387,7 +392,7 @@ def TagAac(Song):
     MetaData['\xa9gen'] = Song.Genre
     MetaData['\xa9day'] = Song.Date
     MetaData['\xa9nam'] = Song.Title
-    
+
     #This is to error check for files that have no Total set
     if Song.TrackNumber != '' and Song.TrackTotal != '':
         num = int(Song.TrackNumber)
@@ -396,19 +401,19 @@ def TagAac(Song):
     elif Song.TrackNumber != '' and Song.TrackTotal == '':
         num = int(Song.TrackNumber)
         MetaData['trkn'] = [(num, 0)]
-    
+
     if Song.DiscNumber != '':
         dnum = int(Song.DiscNumber)
         MetaData['disk'] = [ (dnum, 0) ]
     if Song.Art != '':
         MetaData['covr'] = [MP4Cover(Song.Art, MP4Cover.FORMAT_JPEG)]
     MetaData.save()
-    
+
 def TagMp3(Song):
     import mutagen
     from mutagen.easyid3 import EasyID3
     from mutagen.id3 import ID3, APIC
-    
+
     MetaData = mutagen.File(Song.OutputFile, easy=True)
     MetaData.add_tags()
     MetaData['title'] = Song.Title
@@ -427,7 +432,7 @@ def TagMp3(Song):
 
 #Main*********************************************************************************************************
 def main():
-    
+
     def Encoder (song, OptionList, sem):
         sem.acquire()
         song.Setup(OptionList)
@@ -440,12 +445,12 @@ def main():
         song.WriteArtFile()
         song.CleanUp()
         sem.release()
-    
+
     CPU = cpu_count()
     sem = BoundedSemaphore(CPU)
-    
+
     Initlize()
-    
+
     OptionList = ParseCommandLine()
     CodecCheck(OptionList)
     EncoderBinaryCheck(OptionList[0])
@@ -458,8 +463,8 @@ def main():
         p = Process(target=Encoder, args=(song, OptionList, sem))
         p.start()
         sem.release()
-    
-    
+
+
 
 if __name__ == "__main__":
     main()
