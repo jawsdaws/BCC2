@@ -15,6 +15,9 @@
 
 #TODO Fix Quality checking and error handling
 #TODO FLAC encodeing is not ready
+#TODO ADD Error reporting feature
+#TDOD OPUS!!
+
 
 from multiprocessing import Pool
 from multiprocessing import Process
@@ -142,7 +145,8 @@ class Song( object ):
     def setGenre(self, genre):
         self.Genre = genre
     def setDiscNumber(self, discnum):
-        self.DiscNumber = discnum
+        if(len(discnum) > 0):
+            self.DiscNumber = discnum
     def setDate(self, date):
         self.Date = date
 
@@ -202,7 +206,7 @@ def EncoderBinaryCheck(Option):
     
     Null = open(os.devnull, "w")
     
-    EncodeBinaryDic = {"mp3" : "lame", "ogg" : "oggenc", "mpc" : "mpcenc", "m4a" : "aac-enc", "wv" : "wavpack", "flac" : "flac"}
+    EncodeBinaryDic = {"mp3" : "lame", "ogg" : "oggenc", "mpc" : "mpcenc", "m4a" : "fdkaac", "wv" : "wavpack", "flac" : "flac"}
     
     try:
         subprocess.call([EncodeBinaryDic.get(Option)], stdout=Null, stderr=Null)
@@ -318,7 +322,7 @@ def EncMp3(Song, OutQua):
     subprocess.call( ["lame", "-t", "-%s" %(OutQua), Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null )
 
 def EncAac(Song, OutQua):
-    subprocess.call( ["fdkaac", "-b", OutQua, Song.RandomFilename, "-o", "%s" %(Song.OutputFile) ],  stdout=Null, stderr=Null )
+    subprocess.call( ["fdkaac", "--bitrate-mode", OutQua, "--moov-before-mdat", Song.RandomFilename, "-o", "%s" %(Song.OutputFile) ],  stdout=Null, stderr=Null )
     #subprocess.call( ["aac-enc", "-v", OutQua, "-t", "2", "-s", "0", "-a", "1", Song.RandomFilename, Song.RandomFilename + ".aac"], stdout=Null, stderr=Null )
     #subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", "-new", Song.OutputFile], stdout=Null, stderr=Null )
 
@@ -394,18 +398,25 @@ def TagAac(Song):
     MetaData['\xa9nam'] = Song.Title
 
     #This is to error check for files that have no Total set
-    if Song.TrackNumber != '' and Song.TrackTotal != '':
+    try:
         num = int(Song.TrackNumber)
+    except:
+        #TODO zero here???
+        num = 0
+    try:
         tot = int(Song.TrackTotal)
-        MetaData['trkn'] = [ (num, tot) ]
-    elif Song.TrackNumber != '' and Song.TrackTotal == '':
-        num = int(Song.TrackNumber)
-        MetaData['trkn'] = [(num, 0)]
+    except:
+        tot = 0
+    MetaData['trkn'] = [ (num, tot) ]
 
-    if Song.DiscNumber != '':
-        dnum = int(Song.DiscNumber)
-        MetaData['disk'] = [ (dnum, 0) ]
-    if Song.Art != '':
+    if Song.DiscNumber != " ":
+        try:
+            dnum = int(Song.DiscNumber)
+            MetaData['disk'] = [ (dnum, 0) ]
+        except:
+            pass
+
+    if Song.Art != " ":
         MetaData['covr'] = [MP4Cover(Song.Art, MP4Cover.FORMAT_JPEG)]
     MetaData.save()
 
