@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ class Song( object ):
 
 
     def Setup(self, OptionList):
-        self.RandomFilename = "BA" + "".join(random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in xrange(6))
+        self.RandomFilename = "BA" + "".join(random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in range(6))
         self.RandomFilename = OptionList[5] + "/" + self.RandomFilename + ".wav"
 
     def sanitize(self, inString):
@@ -121,7 +121,7 @@ class Song( object ):
 
     def WriteArtFile(self):
         if(self.HasArt == True):
-            f = open(self.OutputFile.rsplit('/', 1 )[0] + "/" + "cover.jpg", "w")
+            f = open(self.OutputFile.rsplit('/', 1 )[0] + "/" + "cover.jpg", "wb")
             f.write(self.Art)
             f.close
 
