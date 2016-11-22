@@ -39,7 +39,7 @@ class Song( object ):
         self.Album = " "
         self.Title = " "
         self.Artist = " "
-        self.DiscNumber = " "
+        self.DiscNumber = ""
         self.TrackTitle = " "
         self.Art = " "
         self.TrackNumber = " "
@@ -47,6 +47,13 @@ class Song( object ):
         self.Genre = " "
         self.Date = " "
 
+
+    def isNumber(self, input):
+        try:
+            float(input)
+            return True
+        except ValueError:
+            return False
 
     def Setup(self, OptionList):
         self.RandomFilename = "BA" + "".join(random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in range(6))
@@ -64,7 +71,7 @@ class Song( object ):
     def setOutputFile(self, OptionList):
         if OptionList[1] == 'wav':
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.InputFile.split("/")[-1]) + "." + OptionList[0]
-        elif self.DiscNumber != " ":
+        elif self.isNumber(self.DiscNumber):
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + "CD " + self.DiscNumber + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
         else:
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
@@ -75,7 +82,7 @@ class Song( object ):
         try :
             if OptionList[1] == 'wav':
                 os.makedirs(OptionList[2])
-            elif self.DiscNumber != " ":
+            elif self.isNumber(self.DiscNumber):
                 os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album) + "/" + "CD " + self.DiscNumber)
             else:
                 os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album))
@@ -108,6 +115,9 @@ class Song( object ):
         elif OptionList[0] == "mpc":
             EncMpc(self, OptionList[3])
             TagMpc(self)
+        elif OptionList[0] == "opus":
+            EncOpus(self, OptionList[3])
+            TagOpus(self)
 
 
     #This is only called if the input file does not have an art file embed
@@ -145,11 +155,10 @@ class Song( object ):
     def setGenre(self, genre):
         self.Genre = genre
     def setDiscNumber(self, discnum):
-        if(len(discnum) > 0):
+        if(self.isNumber(discnum)):
             self.DiscNumber = discnum
     def setDate(self, date):
         self.Date = date
-
 
 def Initlize():
     try:
@@ -191,7 +200,7 @@ def ParseCommandLine():
 def CodecCheck(OptionList):
     
     #Lists for supported codecs
-    SupportedOut = ["mp3", "ogg", "mpc", "m4a", "wv", "flac"]
+    SupportedOut = ["mp3", "ogg", "mpc", "m4a", "wv", "flac", "opus"]
     SupportedIn = ["wv", "flac", "ape", "wav"]
     
     if OptionList[0] not in SupportedOut:
@@ -206,7 +215,7 @@ def EncoderBinaryCheck(Option):
     
     Null = open(os.devnull, "w")
     
-    EncodeBinaryDic = {"mp3" : "lame", "ogg" : "oggenc", "mpc" : "mpcenc", "m4a" : "fdkaac", "wv" : "wavpack", "flac" : "flac"}
+    EncodeBinaryDic = {"opus" : "opusenc", "mp3" : "lame", "ogg" : "oggenc", "mpc" : "mpcenc", "m4a" : "fdkaac", "wv" : "wavpack", "flac" : "flac"}
     
     try:
         subprocess.call([EncodeBinaryDic.get(Option)], stdout=Null, stderr=Null)
@@ -318,11 +327,14 @@ def DecWav(fullpathfile, TempFilename):
     copy(fullpathfile, TempFilename)
 
 #Encoder******************************************************************************************************
+def EncOpus(Song, OutQua):
+    subprocess.call( ["opusenc", "--bitrate", OutQua, Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null)
+
 def EncMp3(Song, OutQua):
-    subprocess.call( ["lame", "-t", "-%s" %(OutQua), Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null )
+    subprocess.call( ["lame", "-t", "-q", "0", "-b", "192", Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null)
 
 def EncAac(Song, OutQua):
-    subprocess.call( ["fdkaac", "--bitrate-mode", OutQua, "--moov-before-mdat", Song.RandomFilename, "-o", "%s" %(Song.OutputFile) ],  stdout=Null, stderr=Null )
+    subprocess.call( ["fdkaac", "--bitrate-mode", OutQua, "--moov-before-mdat", Song.RandomFilename, "-o", "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null )
     #subprocess.call( ["aac-enc", "-v", OutQua, "-t", "2", "-s", "0", "-a", "1", Song.RandomFilename, Song.RandomFilename + ".aac"], stdout=Null, stderr=Null )
     #subprocess.call( ["MP4Box", "-add", Song.RandomFilename + ".aac", "-new", Song.OutputFile], stdout=Null, stderr=Null )
 
@@ -348,7 +360,7 @@ def TagOgg(Song):
     MetaData['DATE'] = Song.Date
     MetaData['DISCNUMBER'] = Song.DiscNumber
     
-    if Song.Art != '':
+    if type(Song.Art) == bytes:
         from mutagen.flac import Picture
         import base64
         
@@ -360,6 +372,32 @@ def TagOgg(Song):
         vcomment_value = encoded_data.decode("ascii")
         MetaData["metadata_block_picture"] = [vcomment_value]
     
+    MetaData.save()
+
+def TagOpus(Song):
+    from mutagen.oggopus import OggOpus
+    MetaData = OggOpus(Song.OutputFile)
+    MetaData['TITLE'] = Song.Title
+    MetaData['ARTIST'] = Song.Artist
+    MetaData['ALBUM'] = Song.Album
+    MetaData['TRACKNUMBER'] = Song.TrackNumber
+    MetaData['TRACKTOTAL'] = Song.TrackTotal
+    MetaData['GENRE'] = Song.Genre
+    MetaData['DATE'] = Song.Date
+    MetaData['DISCNUMBER'] = Song.DiscNumber
+
+    if type(Song.Art) == bytes:
+        from mutagen.flac import Picture
+        import base64
+
+        picture = Picture()
+        picture.data = Song.Art
+
+        picture_data = picture.write()
+        encoded_data = base64.b64encode(picture_data)
+        vcomment_value = encoded_data.decode("ascii")
+        MetaData["metadata_block_picture"] = [vcomment_value]
+
     MetaData.save()
     
 def TagMpc(Song):
