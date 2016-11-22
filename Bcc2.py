@@ -16,7 +16,6 @@
 #TODO Fix Quality checking and error handling
 #TODO FLAC encodeing is not ready
 #TODO ADD Error reporting feature
-#TDOD OPUS!!
 
 
 from multiprocessing import Pool
