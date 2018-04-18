@@ -16,6 +16,7 @@
 #TODO Fix Quality checking and error handling
 #TODO FLAC encodeing is not ready
 #TODO ADD Error reporting feature
+#TODO ADD Version number and include it in the help screen
 
 
 from multiprocessing import Pool
@@ -59,7 +60,7 @@ class Song( object ):
         self.RandomFilename = OptionList[5] + "/" + self.RandomFilename + ".wav"
 
     def sanitize(self, inString):
-        unusable = ['/', '<', '>', ':', '"', '|', '?', '*']
+        unusable = ['/', '<', '>', ':', '"', '|', '?', '*', ';']
         for i in unusable:
             inString = inString.replace(i, '-')
         return inString
@@ -197,11 +198,11 @@ def ParseCommandLine():
 
 #Check if we can contiune with the codecs selected
 def CodecCheck(OptionList):
-    
+
     #Lists for supported codecs
     SupportedOut = ["mp3", "ogg", "mpc", "m4a", "wv", "flac", "opus"]
     SupportedIn = ["wv", "flac", "ape", "wav"]
-    
+
     if OptionList[0] not in SupportedOut:
         print ("Codec not Supported as Output")
         raise SystemExit
@@ -211,31 +212,31 @@ def CodecCheck(OptionList):
 
 #Check if the needed encoder commands are installed
 def EncoderBinaryCheck(Option):
-    
+
     Null = open(os.devnull, "w")
-    
+
     EncodeBinaryDic = {"opus" : "opusenc", "mp3" : "lame", "ogg" : "oggenc", "mpc" : "mpcenc", "m4a" : "fdkaac", "wv" : "wavpack", "flac" : "flac"}
-    
+
     try:
         subprocess.call([EncodeBinaryDic.get(Option)], stdout=Null, stderr=Null)
     except:
-        print("%s encoder (%s) is not installed" %(Option, EncodeBinaryDic.get(Option))) 
+        print("%s encoder (%s) is not installed" %(Option, EncodeBinaryDic.get(Option)))
         raise SystemExit
-    
-    
+
+
 #Check if the needed decoder commands are installed
 def DecoderBinaryCheck(Option):
 
     Null = open(os.devnull, "w")
-    
+
     if Option == "wav":
         return
     DecodeBinaryDic = {"wv" : "wvunpack", "flac" : "flac", "ape" : "mplayer"}
-    
+
     try:
         subprocess.call([DecodeBinaryDic.get(Option)], stdout=Null, stderr=Null)
     except:
-        print("%s decoder (%s) is not installed" %(Option, DecodeBinaryDic.get(Option))) 
+        print("%s decoder (%s) is not installed" %(Option, DecodeBinaryDic.get(Option)))
         raise SystemExit
 
 #Check if input directory exists
@@ -246,17 +247,17 @@ def InputDirectoryCheck(OptionList):
         raise SystemExit
 
 def BuildSongList(OptionList):
-    
+
     SongList = []
-    
+
     for root, dirs, files in os.walk(OptionList[4]):
-        for file in files:       
+        for file in files:
             if file.endswith('.%s' %(OptionList[1])):
                 song = Song()
                 song.setInputFile(os.path.join(root, file))
                 SongList.append(song)
     return SongList
-    
+
 #Tag Reader************************************************************************************************
 def ReadFlacTag(Song, fullpathfile):
     from mutagen.flac import FLAC
@@ -266,7 +267,7 @@ def ReadFlacTag(Song, fullpathfile):
         Song.HasArt = True
     except:
         Song.ReadArt()
-           
+
     for t in MetaData.items():
         if t[0] == "tracknumber":
             Song.setTrackNumber(t[1][0])
@@ -284,7 +285,7 @@ def ReadFlacTag(Song, fullpathfile):
             Song.setDate(t[1][0])
         elif t[0] == "artist":
             Song.setArtist(t[1][0])
-            
+
 def ReadApeTag(Song, fullpathfile):
     import mutagen.apev2
     MetaData = mutagen.apev2.Open(fullpathfile)
@@ -293,7 +294,7 @@ def ReadApeTag(Song, fullpathfile):
         Song.HasArt = True
     except:
         Song.ReadArt()
-        
+
     if '/' in MetaData['track'][0]:
         TrackList = MetaData['track'][0].split('/')
         Song.setTrackNumber(TrackList[0])
@@ -320,7 +321,7 @@ def DecFlac(fullpathfile, TempFilename):
 
 def DecWv(fullpathfile, TempFilename):
     subprocess.call( ["wvunpack", "-y", fullpathfile, "-o", TempFilename], stdout=Null, stderr=Null )
-    
+
 def DecWav(fullpathfile, TempFilename):
     from shutil import copy
     copy(fullpathfile, TempFilename)
@@ -330,7 +331,7 @@ def EncOpus(Song, OutQua):
     subprocess.call( ["opusenc", "--bitrate", OutQua, Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null)
 
 def EncMp3(Song, OutQua):
-    subprocess.call( ["lame", "-t", "-q", "0", "-b", "192", Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null)
+    subprocess.call( ["lame", "-t", "-q", "0", "-b", OutQua, Song.RandomFilename, "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null)
 
 def EncAac(Song, OutQua):
     subprocess.call( ["fdkaac", "--bitrate-mode", OutQua, "--moov-before-mdat", Song.RandomFilename, "-o", "%s" %(Song.OutputFile) ], stdout=Null, stderr=Null )
@@ -342,7 +343,7 @@ def EncWv(Song, OutQua):
 
 def EncOgg(Song, OutQua):
     subprocess.call( ["oggenc", "-q", OutQua, Song.RandomFilename, "-o", Song.OutputFile], stdout=Null, stderr=Null )
-    
+
 def EncMpc(Song, OutQua):
     subprocess.call( ["mpcenc", "--overwrite", "--quality", OutQua, Song.RandomFilename, Song.OutputFile], stdout=Null, stderr=Null )
 
@@ -358,19 +359,19 @@ def TagOgg(Song):
     MetaData['GENRE'] = Song.Genre
     MetaData['DATE'] = Song.Date
     MetaData['DISCNUMBER'] = Song.DiscNumber
-    
+
     if type(Song.Art) == bytes:
         from mutagen.flac import Picture
         import base64
-        
+
         picture = Picture()
         picture.data = Song.Art
-        
+
         picture_data = picture.write()
         encoded_data = base64.b64encode(picture_data)
         vcomment_value = encoded_data.decode("ascii")
         MetaData["metadata_block_picture"] = [vcomment_value]
-    
+
     MetaData.save()
 
 def TagOpus(Song):
@@ -398,7 +399,7 @@ def TagOpus(Song):
         MetaData["metadata_block_picture"] = [vcomment_value]
 
     MetaData.save()
-    
+
 def TagMpc(Song):
     #ApeTags do not support pictures
     from mutagen.musepack import Musepack
@@ -472,11 +473,14 @@ def TagMp3(Song):
     MetaData['date'] = Song.Date
     MetaData['discnumber'] = Song.DiscNumber
     MetaData.save(Song.OutputFile, v1=2)
-    
-    MetaData2 = ID3(Song.OutputFile)
+
+
     #MetaData2.add(APIC(encoding=3, mime=Song.Art, type=3, desc=u'Cover',data=open(Song.Art).read()))
-    MetaData2.add(APIC(encoding=3, type=3, desc=u'Cover',data=Song.Art))
-    MetaData2.save()
+
+    if Song.Art != " ":
+        MetaData2 = ID3(Song.OutputFile)
+        MetaData2.add(APIC(encoding=3, type=3, desc=u'Cover',data=Song.Art))
+        MetaData2.save()
 
 #Main*********************************************************************************************************
 def main():
@@ -485,7 +489,7 @@ def main():
         sem.acquire()
         song.Setup(OptionList)
         print("Decode " + song.InputFile)
-        song.Decode(OptionList)        
+        song.Decode(OptionList)
         song.setOutputFile(OptionList)
         song.MkDir(OptionList)
         print("Encoding " + song.OutputFile)
@@ -505,7 +509,7 @@ def main():
     DecoderBinaryCheck(OptionList[1])
     InputDirectoryCheck(OptionList)
     SongList = BuildSongList(OptionList)
-    
+
     for song in SongList:
         sem.acquire()
         p = Process(target=Encoder, args=(song, OptionList, sem))
