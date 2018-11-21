@@ -21,15 +21,14 @@
 # TODO ADD Version number and include it in the help screen
 
 
-from multiprocessing import Pool
 from multiprocessing import Process
 from multiprocessing import BoundedSemaphore
 from multiprocessing import cpu_count
-from multiprocessing import Queue
 import argparse
 import os
 import subprocess
 import random
+import string
 
 Null = open(os.devnull, "w")
 
@@ -48,24 +47,11 @@ class Song(object):
         self.TrackTotal = " "
         self.Genre = " "
         self.Date = " "
+        self.RandomFilename = " "
 
-    def isNumber(self, input):
-        try:
-            float(input)
-            return True
-        except ValueError:
-            return False
-
-    def Setup(self, OptionList):
-        self.RandomFilename = "BA" + "".join(
-            random.choice("QWERTYUIOPLKJHGFDSAZXCVBNMqwertyuioplkjhgfdfsazxcvbnm123456789") for i in range(6))
-        self.RandomFilename = OptionList[5] + "/" + self.RandomFilename + ".wav"
-
-    def sanitize(self, inString):
-        unusable = ['/', '<', '>', ':', '"', '|', '?', '*', ';']
-        for i in unusable:
-            inString = inString.replace(i, '-')
-        return inString
+    def setup(self, option_list):
+        self.RandomFilename = "BA" + "".join(random.choice(string.ascii_uppercase + string.digits) for i in range(6))
+        self.RandomFilename = option_list[5] + "/" + self.RandomFilename + ".wav"
 
     def setInputFile(self, infile):
         self.InputFile = infile
@@ -73,7 +59,7 @@ class Song(object):
     def setOutputFile(self, OptionList):
         if OptionList[1] == 'wav':
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.InputFile.split("/")[-1]) + "." + OptionList[0]
-        elif self.isNumber(self.DiscNumber):
+        elif is_number(self.DiscNumber):
             self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
                 self.Album) + "/" + "CD " + self.DiscNumber + "/" + self.TrackNumber + " - " + self.sanitize(
                 self.Title) + "." + OptionList[0]
@@ -83,11 +69,11 @@ class Song(object):
 
     # Write the output directory to disc
     def MkDir(self, OptionList):
-        # Use try/pass here because threads can colide and cause an exception.
+        # Use try/pass here because threads can collide and cause an exception.
         try:
             if OptionList[1] == 'wav':
                 os.makedirs(OptionList[2])
-            elif self.isNumber(self.DiscNumber):
+            elif is_number(self.DiscNumber):
                 os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
                     self.Album) + "/" + "CD " + self.DiscNumber)
             else:
@@ -165,11 +151,28 @@ class Song(object):
         self.Genre = genre
 
     def setDiscNumber(self, discnum):
-        if (self.isNumber(discnum)):
+        if (is_number(discnum)):
             self.DiscNumber = discnum
 
     def setDate(self, date):
         self.Date = date
+
+
+# Simple Check to see if the variable is a number
+def is_number(input_num):
+    try:
+        float(input_num)
+        return True
+    except ValueError:
+        return False
+
+
+# Replaces string that are bad for certain filesystems (VFAT, etc)
+def sanitize(input_string):
+    unusable = ['/', '<', '>', ':', '"', '|', '?', '*', ';']
+    for i in unusable:
+        input_string = input_string.replace(i, '-')
+    return input_string
 
 
 def Initlize():
