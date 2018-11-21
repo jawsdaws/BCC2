@@ -57,59 +57,59 @@ class Song(object):
     def set_input_file(self, infile):
         self.InputFile = infile
 
-    def setOutputFile(self, OptionList):
-        if OptionList[1] == 'wav':
-            self.OutputFile = OptionList[2] + "/" + self.sanitize(self.InputFile.split("/")[-1]) + "." + OptionList[0]
+    def setOutputFile(self, option_list):
+        if option_list[1] == 'wav':
+            self.OutputFile = option_list[2] + "/" + self.sanitize(self.InputFile.split("/")[-1]) + "." + option_list[0]
         elif is_number(self.DiscNumber):
-            self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
+            self.OutputFile = option_list[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
                 self.Album) + "/" + "CD " + self.DiscNumber + "/" + self.TrackNumber + " - " + self.sanitize(
-                self.Title) + "." + OptionList[0]
+                self.Title) + "." + option_list[0]
         else:
-            self.OutputFile = OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
-                self.Album) + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + OptionList[0]
+            self.OutputFile = option_list[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
+                self.Album) + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + option_list[0]
 
     # Write the output directory to disc
-    def MkDir(self, OptionList):
+    def MkDir(self, option_list):
         # Use try/pass here because threads can collide and cause an exception.
         try:
-            if OptionList[1] == 'wav':
-                os.makedirs(OptionList[2])
+            if option_list[1] == 'wav':
+                os.makedirs(option_list[2])
             elif is_number(self.DiscNumber):
-                os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
+                os.makedirs(option_list[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
                     self.Album) + "/" + "CD " + self.DiscNumber)
             else:
-                os.makedirs(OptionList[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album))
+                os.makedirs(option_list[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album))
         except:
             pass
 
-    def Decode(self, OptionList):
-        if OptionList[1] == "flac":
+    def Decode(self, option_list):
+        if option_list[1] == "flac":
             DecFlac(self.InputFile, self.RandomFilename)
             ReadFlacTag(self, self.InputFile)
-        elif OptionList[1] == "wv":
+        elif option_list[1] == "wv":
             DecWv(self.InputFile, self.RandomFilename)
             ReadApeTag(self, self.InputFile)
-        elif OptionList[1] == "wav":
+        elif option_list[1] == "wav":
             DecWav(self.InputFile, self.RandomFilename)
 
-    def Encode(self, OptionList):
-        if OptionList[0] == "mp3":
-            EncMp3(self, OptionList[3])
+    def encode(self, option_list):
+        if option_list[0] == "mp3":
+            EncMp3(self, option_list[3])
             TagMp3(self)
-        elif OptionList[0] == "ogg":
-            EncOgg(self, OptionList[3])
+        elif option_list[0] == "ogg":
+            EncOgg(self, option_list[3])
             TagOgg(self)
-        elif OptionList[0] == "m4a":
-            EncAac(self, OptionList[3])
+        elif option_list[0] == "m4a":
+            EncAac(self, option_list[3])
             TagAac(self)
-        elif OptionList[0] == "wv":
-            EncWv(self, OptionList[3])
+        elif option_list[0] == "wv":
+            EncWv(self, option_list[3])
             TagWv(self)
-        elif OptionList[0] == "mpc":
-            EncMpc(self, OptionList[3])
+        elif option_list[0] == "mpc":
+            EncMpc(self, option_list[3])
             TagMpc(self)
-        elif OptionList[0] == "opus":
-            EncOpus(self, OptionList[3])
+        elif option_list[0] == "opus":
+            EncOpus(self, option_list[3])
             TagOpus(self)
 
     # This is only called if the input file does not have an art file embed
@@ -127,7 +127,7 @@ class Song(object):
             f.write(self.Art)
             f.close
 
-    def CleanUp(self):
+    def clean_up(self):
         if os.path.exists(self.RandomFilename):
             os.remove(self.RandomFilename)
         if os.path.exists(self.RandomFilename + ".aac"):
@@ -197,34 +197,34 @@ def ParseCommandLine():
 
     args = parser.parse_args()
 
-    OptionList = [args.OutputCodec, args.InputCodec, args.OutputDir, args.OutputQuality, args.InputDir, args.TempDir]
-    OptionList[0] = OptionList[0].lower()
-    OptionList[1] = OptionList[1].lower()
+    option_list = [args.OutputCodec, args.InputCodec, args.OutputDir, args.OutputQuality, args.InputDir, args.TempDir]
+    option_list[0] = option_list[0].lower()
+    option_list[1] = option_list[1].lower()
 
     if args.TempDir == None:
-        OptionList[5] = "/tmp"
+        option_list[5] = "/tmp"
     else:
-        OptionList[5] = args.TempDir
-    if not os.path.exists(OptionList[5]):
+        option_list[5] = args.TempDir
+    if not os.path.exists(option_list[5]):
         print("Temp directory does not exist.")
         raise SystemExit
-    if os.access(OptionList[5], os.W_OK) == False:
+    if os.access(option_list[5], os.W_OK) == False:
         print("Temp directory is not writeable.  Please check your permissons")
         raise SystemExit
 
-    return OptionList
+    return option_list
 
 
 # Check if we can contiune with the codecs selected
-def CodecCheck(OptionList):
+def CodecCheck(option_list):
     # Lists for supported codecs
     SupportedOut = ["mp3", "ogg", "mpc", "m4a", "wv", "flac", "opus"]
     SupportedIn = ["wv", "flac", "ape", "wav"]
 
-    if OptionList[0] not in SupportedOut:
+    if option_list[0] not in SupportedOut:
         print("Codec not Supported as Output")
         raise SystemExit
-    if OptionList[1] not in SupportedIn:
+    if option_list[1] not in SupportedIn:
         print("Codec not Supported as Input")
         raise SystemExit
 
@@ -259,18 +259,18 @@ def DecoderBinaryCheck(Option):
 
 
 # Check if input directory exists
-def InputDirectoryCheck(OptionList):
-    if not os.path.exists(OptionList[4]):
+def InputDirectoryCheck(option_list):
+    if not os.path.exists(option_list[4]):
         print("Input directory does not exist")
         raise SystemExit
 
 
-def BuildSongList(OptionList):
+def BuildSongList(option_list):
     SongList = []
 
-    for root, dirs, files in os.walk(OptionList[4]):
+    for root, dirs, files in os.walk(option_list[4]):
         for file in files:
-            if file.endswith('.%s' % (OptionList[1])):
+            if file.endswith('.%s' % (option_list[1])):
                 song = Song()
                 song.set_input_file(os.path.join(root, file))
                 SongList.append(song)
@@ -525,17 +525,17 @@ def TagMp3(Song):
 
 # Main*********************************************************************************************************
 def main():
-    def Encoder(song, OptionList, sem):
+    def Encoder(song, option_list, sem):
         sem.acquire()
-        song.Setup(OptionList)
+        song.Setup(option_list)
         print("Decode " + song.InputFile)
-        song.Decode(OptionList)
-        song.setOutputFile(OptionList)
-        song.MkDir(OptionList)
+        song.Decode(option_list)
+        song.setOutputFile(option_list)
+        song.MkDir(option_list)
         print("Encoding " + song.OutputFile)
-        song.Encode(OptionList)
+        song.encode(option_list)
         song.WriteArtFile()
-        song.CleanUp()
+        song.clean_up()
         sem.release()
 
     CPU = cpu_count()
@@ -543,16 +543,16 @@ def main():
 
     Initlize()
 
-    OptionList = ParseCommandLine()
-    CodecCheck(OptionList)
-    EncoderBinaryCheck(OptionList[0])
-    DecoderBinaryCheck(OptionList[1])
-    InputDirectoryCheck(OptionList)
-    SongList = BuildSongList(OptionList)
+    option_list = ParseCommandLine()
+    CodecCheck(option_list)
+    EncoderBinaryCheck(option_list[0])
+    DecoderBinaryCheck(option_list[1])
+    InputDirectoryCheck(option_list)
+    SongList = BuildSongList(option_list)
 
     for song in SongList:
         sem.acquire()
-        p = Process(target=Encoder, args=(song, OptionList, sem))
+        p = Process(target=Encoder, args=(song, option_list, sem))
         p.start()
         sem.release()
 
