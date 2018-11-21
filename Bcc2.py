@@ -48,12 +48,13 @@ class Song(object):
         self.Genre = " "
         self.Date = " "
         self.RandomFilename = " "
+        self.InputFile = " "
 
     def setup(self, option_list):
         self.RandomFilename = "BA" + "".join(random.choice(string.ascii_uppercase + string.digits) for i in range(6))
         self.RandomFilename = option_list[5] + "/" + self.RandomFilename + ".wav"
 
-    def setInputFile(self, infile):
+    def set_input_file(self, infile):
         self.InputFile = infile
 
     def setOutputFile(self, OptionList):
@@ -271,7 +272,7 @@ def BuildSongList(OptionList):
         for file in files:
             if file.endswith('.%s' % (OptionList[1])):
                 song = Song()
-                song.setInputFile(os.path.join(root, file))
+                song.set_input_file(os.path.join(root, file))
                 SongList.append(song)
     return SongList
 
