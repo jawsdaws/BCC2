@@ -14,7 +14,9 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # TODO Fix Quality checking and error handling
-# TODO FLAC encodeing is not ready
+# TODO FLAC encoding is not ready
+# TODO Wavpack encoding
+# TODO Add lossless detection so that any number of input codec can be used
 # TODO ADD Error reporting feature
 # TODO ADD Version number and include it in the help screen
 
