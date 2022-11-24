@@ -14,7 +14,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # TODO Fix Quality checking and error handling
-# TODO FLAC encoding is not ready
 # TODO Wavpack encoding
 # TODO Add lossless detection so that any number of input codec can be used
 # TODO ADD Error reporting feature
@@ -59,14 +58,14 @@ class Song(object):
 
     def setOutputFile(self, option_list):
         if option_list[1] == 'wav':
-            self.OutputFile = option_list[2] + "/" + self.sanitize(self.InputFile.split("/")[-1]) + "." + option_list[0]
+            self.OutputFile = option_list[2] + "/" + sanitize(self.InputFile.split("/")[-1]) + "." + option_list[0]
         elif is_number(self.DiscNumber):
-            self.OutputFile = option_list[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
-                self.Album) + "/" + "CD " + self.DiscNumber + "/" + self.TrackNumber + " - " + self.sanitize(
+            self.OutputFile = option_list[2] + "/" + sanitize(self.Artist) + "/" + sanitize(
+                self.Album) + "/" + "CD " + self.DiscNumber + "/" + self.TrackNumber + " - " + sanitize(
                 self.Title) + "." + option_list[0]
         else:
-            self.OutputFile = option_list[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
-                self.Album) + "/" + self.TrackNumber + " - " + self.sanitize(self.Title) + "." + option_list[0]
+            self.OutputFile = option_list[2] + "/" + sanitize(self.Artist) + "/" + sanitize(
+                self.Album) + "/" + self.TrackNumber + " - " + sanitize(self.Title) + "." + option_list[0]
 
     # Write the output directory to disc
     def MkDir(self, option_list):
@@ -75,10 +74,10 @@ class Song(object):
             if option_list[1] == 'wav':
                 os.makedirs(option_list[2])
             elif is_number(self.DiscNumber):
-                os.makedirs(option_list[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(
+                os.makedirs(option_list[2] + "/" + sanitize(self.Artist) + "/" + sanitize(
                     self.Album) + "/" + "CD " + self.DiscNumber)
             else:
-                os.makedirs(option_list[2] + "/" + self.sanitize(self.Artist) + "/" + self.sanitize(self.Album))
+                os.makedirs(option_list[2] + "/" + sanitize(self.Artist) + "/" + sanitize(self.Album))
         except:
             pass
 
@@ -99,6 +98,9 @@ class Song(object):
         elif option_list[0] == "ogg":
             EncOgg(self, option_list[3])
             TagOgg(self)
+        elif option_list[0] == "flac":
+            EncFlac(self, option_list[3])
+            TagFlac(self)
         elif option_list[0] == "m4a":
             EncAac(self, option_list[3])
             TagAac(self)
@@ -377,6 +379,9 @@ def EncWv(Song, OutQua):
 def EncOgg(Song, OutQua):
     subprocess.call(["oggenc", "-q", OutQua, Song.RandomFilename, "-o", Song.OutputFile], stdout=Null, stderr=Null)
 
+def EncFlac(Song, OutQua):
+    subprocess.call(["flac", "-f", "-e", "-%s" % (OutQua), Song.RandomFilename, "-o", Song.OutputFile], stdout=Null, stderr=Null)
+
 
 def EncMpc(Song, OutQua):
     subprocess.call(["mpcenc", "--overwrite", "--quality", OutQua, Song.RandomFilename, Song.OutputFile], stdout=Null,
@@ -410,6 +415,31 @@ def TagOgg(Song):
 
     MetaData.save()
 
+def TagFlac(Song):
+    from mutagen.flac import FLAC
+    MetaData = FLAC(Song.OutputFile)
+    MetaData['TITLE'] = Song.Title
+    MetaData['ARTIST'] = Song.Artist
+    MetaData['ALBUM'] = Song.Album
+    MetaData['TRACKNUMBER'] = Song.TrackNumber
+    MetaData['TRACKTOTAL'] = Song.TrackTotal
+    MetaData['GENRE'] = Song.Genre
+    MetaData['DATE'] = Song.Date
+    MetaData['DISCNUMBER'] = Song.DiscNumber
+
+    if type(Song.Art) == bytes:
+        from mutagen.flac import Picture
+        import base64
+
+        picture = Picture()
+        picture.data = Song.Art
+
+        picture_data = picture.write()
+        encoded_data = base64.b64encode(picture_data)
+        vcomment_value = encoded_data.decode("ascii")
+        MetaData["metadata_block_picture"] = [vcomment_value]
+
+    MetaData.save()
 
 def TagOpus(Song):
     from mutagen.oggopus import OggOpus
@@ -527,7 +557,7 @@ def TagMp3(Song):
 def main():
     def Encoder(song, option_list, sem):
         sem.acquire()
-        song.Setup(option_list)
+        song.setup(option_list)
         print("Decode " + song.InputFile)
         song.Decode(option_list)
         song.setOutputFile(option_list)
